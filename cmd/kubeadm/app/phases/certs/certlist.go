@@ -38,12 +38,13 @@ const (
 
 type configMutatorsFunc func(*kubeadmapi.InitConfiguration, *pkiutil.CertConfig) error
 
+// 证书
 // KubeadmCert represents a certificate that Kubeadm will create to function properly.
 type KubeadmCert struct {
 	Name     string
 	LongName string
-	BaseName string
-	CAName   string
+	BaseName string	// 证书和密钥的文件名
+	CAName   string // CA机构的名字
 	// Some attributes will depend on the InitConfiguration, only known at runtime.
 	// These functions will be run in series, passed both the InitConfiguration and a cert Config.
 	configMutators []configMutatorsFunc
@@ -57,7 +58,7 @@ func (k *KubeadmCert) GetConfig(ic *kubeadmapi.InitConfiguration) (*pkiutil.Cert
 			return nil, err
 		}
 	}
-
+	// 共钥算法
 	k.config.PublicKeyAlgorithm = ic.ClusterConfiguration.PublicKeyAlgorithm()
 	return &k.config, nil
 }
@@ -215,16 +216,20 @@ func (c Certificates) AsMap() CertificateMap {
 	return certMap
 }
 
+// 需要签署的证书列表
 // GetDefaultCertList returns  all of the certificates kubeadm requires to function.
 func GetDefaultCertList() Certificates {
 	return Certificates{
+		// k8s的CA
 		KubeadmCertRootCA(),
+		// APIServer提供服务的证书
 		KubeadmCertAPIServer(),
+		// API server访问kubelet的证书
 		KubeadmCertKubeletClient(),
 		// Front Proxy certs
 		KubeadmCertFrontProxyCA(),
 		KubeadmCertFrontProxyClient(),
-		// etcd certs
+		// etcd的证书
 		KubeadmCertEtcdCA(),
 		KubeadmCertEtcdServer(),
 		KubeadmCertEtcdPeer(),
@@ -245,12 +250,13 @@ func GetCertsWithoutEtcd() Certificates {
 	}
 }
 
+// k8s的CA
 // KubeadmCertRootCA is the definition of the Kubernetes Root CA for the API Server and kubelet.
 func KubeadmCertRootCA() *KubeadmCert {
 	return &KubeadmCert{
 		Name:     "ca",
 		LongName: "self-signed Kubernetes CA to provision identities for other Kubernetes components",
-		BaseName: kubeadmconstants.CACertAndKeyBaseName,
+		BaseName: kubeadmconstants.CACertAndKeyBaseName,	// "ca"
 		config: pkiutil.CertConfig{
 			Config: certutil.Config{
 				CommonName: "kubernetes",
@@ -259,17 +265,18 @@ func KubeadmCertRootCA() *KubeadmCert {
 	}
 }
 
+// APIServer提供服务的证书
 // KubeadmCertAPIServer is the definition of the cert used to serve the Kubernetes API.
 func KubeadmCertAPIServer() *KubeadmCert {
 	return &KubeadmCert{
 		Name:     "apiserver",
 		LongName: "certificate for serving the Kubernetes API",
-		BaseName: kubeadmconstants.APIServerCertAndKeyBaseName,
+		BaseName: kubeadmconstants.APIServerCertAndKeyBaseName, // "apiserver"
 		CAName:   "ca",
 		config: pkiutil.CertConfig{
 			Config: certutil.Config{
-				CommonName: kubeadmconstants.APIServerCertCommonName,
-				Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+				CommonName: kubeadmconstants.APIServerCertCommonName, // "kube-apiserver"
+				Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, //
 			},
 		},
 		configMutators: []configMutatorsFunc{
@@ -278,17 +285,18 @@ func KubeadmCertAPIServer() *KubeadmCert {
 	}
 }
 
+// API server访问kubelet的证书
 // KubeadmCertKubeletClient is the definition of the cert used by the API server to access the kubelet.
 func KubeadmCertKubeletClient() *KubeadmCert {
 	return &KubeadmCert{
 		Name:     "apiserver-kubelet-client",
 		LongName: "certificate for the API server to connect to kubelet",
-		BaseName: kubeadmconstants.APIServerKubeletClientCertAndKeyBaseName,
+		BaseName: kubeadmconstants.APIServerKubeletClientCertAndKeyBaseName,			// "apiserver-kubelet-client"
 		CAName:   "ca",
 		config: pkiutil.CertConfig{
 			Config: certutil.Config{
-				CommonName:   kubeadmconstants.APIServerKubeletClientCertCommonName,
-				Organization: []string{kubeadmconstants.SystemPrivilegedGroup},
+				CommonName:   kubeadmconstants.APIServerKubeletClientCertCommonName,	// "kube-apiserver-kubelet-client"
+				Organization: []string{kubeadmconstants.SystemPrivilegedGroup},			// "system:masters"
 				Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 			},
 		},
@@ -325,6 +333,7 @@ func KubeadmCertFrontProxyClient() *KubeadmCert {
 	}
 }
 
+// ETCD使用的CA根证书
 // KubeadmCertEtcdCA is the definition of the root CA used by the hosted etcd server.
 func KubeadmCertEtcdCA() *KubeadmCert {
 	return &KubeadmCert{
@@ -339,12 +348,13 @@ func KubeadmCertEtcdCA() *KubeadmCert {
 	}
 }
 
+// ETCD提供服务的证书
 // KubeadmCertEtcdServer is the definition of the cert used to serve etcd to clients.
 func KubeadmCertEtcdServer() *KubeadmCert {
 	return &KubeadmCert{
 		Name:     "etcd-server",
 		LongName: "certificate for serving etcd",
-		BaseName: kubeadmconstants.EtcdServerCertAndKeyBaseName,
+		BaseName: kubeadmconstants.EtcdServerCertAndKeyBaseName,	// "etcd/server"
 		CAName:   "etcd-ca",
 		config: pkiutil.CertConfig{
 			Config: certutil.Config{
@@ -357,17 +367,19 @@ func KubeadmCertEtcdServer() *KubeadmCert {
 		},
 		configMutators: []configMutatorsFunc{
 			makeAltNamesMutator(pkiutil.GetEtcdAltNames),
+			// 将CN名设置为"节点的名字"
 			setCommonNameToNodeName(),
 		},
 	}
 }
 
+// ETCD服务器直接互相访问的证书
 // KubeadmCertEtcdPeer is the definition of the cert used by etcd peers to access each other.
 func KubeadmCertEtcdPeer() *KubeadmCert {
 	return &KubeadmCert{
 		Name:     "etcd-peer",
 		LongName: "certificate for etcd nodes to communicate with each other",
-		BaseName: kubeadmconstants.EtcdPeerCertAndKeyBaseName,
+		BaseName: kubeadmconstants.EtcdPeerCertAndKeyBaseName,	// "etcd/peer"
 		CAName:   "etcd-ca",
 		config: pkiutil.CertConfig{
 			Config: certutil.Config{
@@ -386,29 +398,30 @@ func KubeadmCertEtcdHealthcheck() *KubeadmCert {
 	return &KubeadmCert{
 		Name:     "etcd-healthcheck-client",
 		LongName: "certificate for liveness probes to healthcheck etcd",
-		BaseName: kubeadmconstants.EtcdHealthcheckClientCertAndKeyBaseName,
+		BaseName: kubeadmconstants.EtcdHealthcheckClientCertAndKeyBaseName,	// "etcd/healthcheck-client"
 		CAName:   "etcd-ca",
 		config: pkiutil.CertConfig{
 			Config: certutil.Config{
-				CommonName:   kubeadmconstants.EtcdHealthcheckClientCertCommonName,
-				Organization: []string{kubeadmconstants.SystemPrivilegedGroup},
+				CommonName:   kubeadmconstants.EtcdHealthcheckClientCertCommonName,	// "kube-etcd-healthcheck-client"
+				Organization: []string{kubeadmconstants.SystemPrivilegedGroup},	// "system:masters"
 				Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 			},
 		},
 	}
 }
 
+// API server访问ETCD的证书
 // KubeadmCertEtcdAPIClient is the definition of the cert used by the API server to access etcd.
 func KubeadmCertEtcdAPIClient() *KubeadmCert {
 	return &KubeadmCert{
 		Name:     "apiserver-etcd-client",
 		LongName: "certificate the apiserver uses to access etcd",
-		BaseName: kubeadmconstants.APIServerEtcdClientCertAndKeyBaseName,
+		BaseName: kubeadmconstants.APIServerEtcdClientCertAndKeyBaseName,	// "apiserver-etcd-client"
 		CAName:   "etcd-ca",
 		config: pkiutil.CertConfig{
 			Config: certutil.Config{
-				CommonName:   kubeadmconstants.APIServerEtcdClientCertCommonName,
-				Organization: []string{kubeadmconstants.SystemPrivilegedGroup},
+				CommonName:   kubeadmconstants.APIServerEtcdClientCertCommonName,	// "kube-apiserver-etcd-client"
+				Organization: []string{kubeadmconstants.SystemPrivilegedGroup},	// "system:masters"
 				Usages:       []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 			},
 		},

@@ -36,7 +36,9 @@ type InitData interface {
 	DryRun() bool
 	SkipTokenPrint() bool
 	IgnorePreflightErrors() sets.String
+	// 生成证书存放地址
 	CertificateWriteDir() string
+	// 用户提供的证书地址
 	CertificateDir() string
 	KubeConfigDir() string
 	KubeConfigPath() string

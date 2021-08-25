@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// kubeadmin的各个工作阶段
 // Phase provides an implementation of a workflow phase that allows
 // creation of new phases by simply instantiating a variable of this type.
 type Phase struct {
@@ -41,10 +42,12 @@ type Phase struct {
 	// Example returns the example for the phase.
 	Example string
 
+	// 是否在help中隐藏
 	// Hidden define if the phase should be hidden in the workflow help.
 	// e.g. PrintFilesIfDryRunning phase in the kubeadm init workflow is candidate for being hidden to the users
 	Hidden bool
 
+	// 子阶段
 	// Phases defines a nested, ordered sequence of phases.
 	Phases []Phase
 
@@ -53,11 +56,13 @@ type Phase struct {
 	// Nb. phase marked as RunAllSiblings can not have Run functions
 	RunAllSiblings bool
 
+	// 执行函数
 	// Run defines a function implementing the phase action.
 	// It is recommended to implent type assertion, e.g. using golang type switch,
 	// for validating the RunData type.
 	Run func(data RunData) error
 
+	// 执行前的检查条件
 	// RunIf define a function that implements a condition that should be checked
 	// before executing the phase action.
 	// If this function return nil, the phase action is always executed.
@@ -75,11 +80,13 @@ type Phase struct {
 	// or additional flags defined in the phase runner.
 	LocalFlags *pflag.FlagSet
 
+	// 验证参数
 	// ArgsValidator defines the positional arg function to be used for validating args for this phase
 	// If not set a phase will adopt the args of the top level command.
 	ArgsValidator cobra.PositionalArgs
 }
 
+// 添加子阶段
 // AppendPhase adds the given phase to the nested, ordered sequence of phases.
 func (t *Phase) AppendPhase(phase Phase) {
 	t.Phases = append(t.Phases, phase)

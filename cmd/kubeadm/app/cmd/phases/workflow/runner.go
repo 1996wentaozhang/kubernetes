@@ -39,6 +39,7 @@ type RunnerOptions struct {
 	SkipPhases []string
 }
 
+// init阶段的参数[从命令行传入]
 // RunData defines the data shared among all the phases included in the workflow, that is any type.
 type RunData = interface{}
 

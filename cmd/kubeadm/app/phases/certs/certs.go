@@ -102,6 +102,7 @@ func CreateServiceAccountKeyAndPublicKeyFiles(certsDir string, keyType x509.Publ
 	return pkiutil.WritePublicKey(certsDir, kubeadmconstants.ServiceAccountKeyBaseName, key.Public())
 }
 
+// 生成CA证书和密钥
 // CreateCACertAndKeyFiles generates and writes out a given certificate authority.
 // The certSpec should be one of the variables from this package.
 func CreateCACertAndKeyFiles(certSpec *KubeadmCert, cfg *kubeadmapi.InitConfiguration) error {
@@ -109,19 +110,21 @@ func CreateCACertAndKeyFiles(certSpec *KubeadmCert, cfg *kubeadmapi.InitConfigur
 		return errors.Errorf("this function should only be used for CAs, but cert %s has CA %s", certSpec.Name, certSpec.CAName)
 	}
 	klog.V(1).Infof("creating a new certificate authority for %s", certSpec.Name)
-
+	// 读取配置信息
 	certConfig, err := certSpec.GetConfig(cfg)
 	if err != nil {
 		return err
 	}
-
+	// 生成证书和密钥
 	caCert, caKey, err := pkiutil.NewCertificateAuthority(certConfig)
 	if err != nil {
 		return err
 	}
-
+	// 存放证书和密钥
 	return writeCertificateAuthorityFilesIfNotExist(
+		// 证书存放地址
 		cfg.CertificatesDir,
+		// 证书和密钥的名字
 		certSpec.BaseName,
 		caCert,
 		caKey,
@@ -147,6 +150,7 @@ func CreateCSR(certSpec *KubeadmCert, cfg *kubeadmapi.InitConfiguration, path st
 	return writeCSRFilesIfNotExist(path, certSpec.BaseName, csr, key)
 }
 
+// CA机构签发证书
 // CreateCertAndKeyFilesWithCA loads the given certificate authority from disk, then generates and writes out the given certificate and key.
 // The certSpec and caCertSpec should both be one of the variables from this package.
 func CreateCertAndKeyFilesWithCA(certSpec *KubeadmCert, caCertSpec *KubeadmCert, cfg *kubeadmapi.InitConfiguration) error {

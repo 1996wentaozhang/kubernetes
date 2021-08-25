@@ -49,45 +49,51 @@ var (
 		` + cmdutil.AlphaDisclaimer)
 )
 
+// 新建cert阶段
 // NewCertsPhase returns the phase for the certs
 func NewCertsPhase() workflow.Phase {
 	return workflow.Phase{
 		Name:   "certs",
 		Short:  "Certificate generation",
-		Phases: newCertSubPhases(),
-		Run:    runCerts,
+		Phases: newCertSubPhases(),	// 创建子阶段
+		Run:    runCerts,			// 执行函数
 		Long:   cmdutil.MacroCommandLongDescription,
 	}
 }
 
+// 新建cert的子阶段
 // newCertSubPhases returns sub phases for certs phase
 func newCertSubPhases() []workflow.Phase {
+	// 子阶段slice
 	subPhases := []workflow.Phase{}
 
-	// All subphase
+	// All subphase:用于启动subPhases中他的兄弟阶段,没有实质执行的内容。
 	allPhase := workflow.Phase{
 		Name:           "all",
 		Short:          "Generate all certificates",
 		InheritFlags:   getCertPhaseFlags("all"),
 		RunAllSiblings: true,
 	}
-
 	subPhases = append(subPhases, allPhase)
 
+	// 创建各个证书的子阶段
 	// This loop assumes that GetDefaultCertList() always returns a list of
 	// certificate that is preceded by the CAs that sign them.
 	var lastCACert *certsphase.KubeadmCert
-	for _, cert := range certsphase.GetDefaultCertList() {
+	for _, cert := range certsphase.GetDefaultCertList() { // 需要签证书的各个阶段
 		var phase workflow.Phase
 		if cert.CAName == "" {
+			// 生成CA证书的子阶段
 			phase = newCertSubPhase(cert, runCAPhase(cert))
 			lastCACert = cert
 		} else {
+			// 生成普通证书的子阶段
 			phase = newCertSubPhase(cert, runCertPhase(cert, lastCACert))
 		}
 		subPhases = append(subPhases, phase)
 	}
 
+	// 创建Service Account使用的密钥
 	// SA creates the private/public key pair, which doesn't use x509 at all
 	saPhase := workflow.Phase{
 		Name:         "sa",
@@ -102,8 +108,10 @@ func newCertSubPhases() []workflow.Phase {
 	return subPhases
 }
 
+// 新建cert子阶段
 func newCertSubPhase(certSpec *certsphase.KubeadmCert, run func(c workflow.RunData) error) workflow.Phase {
 	phase := workflow.Phase{
+		//
 		Name:  certSpec.Name,
 		Short: fmt.Sprintf("Generate the %s", certSpec.LongName),
 		Long: fmt.Sprintf(
@@ -214,22 +222,29 @@ func runCerts(c workflow.RunData) error {
 	return nil
 }
 
+// 创建一个CA证书，或使用本地现有的
+//	1）etcd
+//	2）k8s
 func runCAPhase(ca *certsphase.KubeadmCert) func(c workflow.RunData) error {
 	return func(c workflow.RunData) error {
+		// 命令行传入的init参数
 		data, ok := c.(InitData)
 		if !ok {
 			return errors.New("certs phase invoked with an invalid data struct")
 		}
 
+		// 如果传入了etcd证书,跳过etcd的CA证书生成
 		// if using external etcd, skips etcd certificate authority generation
 		if data.Cfg().Etcd.External != nil && ca.Name == "etcd-ca" {
 			fmt.Printf("[certs] External etcd mode: Skipping %s certificate authority generation\n", ca.BaseName)
 			return nil
 		}
 
+		// 尝试从本地加载证书
 		if cert, err := pkiutil.TryLoadCertFromDisk(data.CertificateDir(), ca.BaseName); err == nil {
+			// 检查证书是否过期
 			certsphase.CheckCertificatePeriodValidity(ca.BaseName, cert)
-
+			// 尝试从本地加载密钥
 			if _, err := pkiutil.TryLoadKeyFromDisk(data.CertificateDir(), ca.BaseName); err == nil {
 				fmt.Printf("[certs] Using existing %s certificate authority\n", ca.BaseName)
 				return nil
@@ -243,11 +258,13 @@ func runCAPhase(ca *certsphase.KubeadmCert) func(c workflow.RunData) error {
 		cfg.CertificatesDir = data.CertificateWriteDir()
 		defer func() { cfg.CertificatesDir = data.CertificateDir() }()
 
+		// 生成新的CA证书和密钥
 		// create the new certificate authority (or use existing)
 		return certsphase.CreateCACertAndKeyFiles(ca, cfg)
 	}
 }
 
+// 创建一个证书，或使用本地现有的
 func runCertPhase(cert *certsphase.KubeadmCert, caCert *certsphase.KubeadmCert) func(c workflow.RunData) error {
 	return func(c workflow.RunData) error {
 		data, ok := c.(InitData)
@@ -261,6 +278,7 @@ func runCertPhase(cert *certsphase.KubeadmCert, caCert *certsphase.KubeadmCert) 
 			return nil
 		}
 
+		// 尝试加载本地证书,并检查是否为正确的CA机构签发
 		if certData, intermediates, err := pkiutil.TryLoadCertChainFromDisk(data.CertificateDir(), cert.BaseName); err == nil {
 			certsphase.CheckCertificatePeriodValidity(cert.BaseName, certData)
 
@@ -284,7 +302,7 @@ func runCertPhase(cert *certsphase.KubeadmCert, caCert *certsphase.KubeadmCert) 
 		cfg.CertificatesDir = data.CertificateWriteDir()
 		defer func() { cfg.CertificatesDir = data.CertificateDir() }()
 
-		// create the new certificate (or use existing)
+		// 生成证书
 		return certsphase.CreateCertAndKeyFilesWithCA(cert, caCert, cfg)
 	}
 }

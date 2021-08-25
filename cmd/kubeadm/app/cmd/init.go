@@ -48,6 +48,7 @@ import (
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
 )
 
+// init运行成功输出的信息
 var (
 	initDoneTempl = template.Must(template.New("init").Parse(dedent.Dedent(`
 		Your Kubernetes control-plane has initialized successfully!
@@ -88,6 +89,7 @@ var (
 		`)))
 )
 
+// init子命令的参数
 // initOptions defines all the init options exposed via flags by kubeadm init.
 // Please note that this structure includes the public kubeadm config API, but only a subset of the options
 // supported by this api will be exposed as a flag.
@@ -133,9 +135,11 @@ type initData struct {
 // NB. initOptions is exposed as parameter for allowing unit testing of
 //     the newInitOptions method, that implements all the command options validation logic
 func newCmdInit(out io.Writer, initOptions *initOptions) *cobra.Command {
+	// init子命令的参数
 	if initOptions == nil {
 		initOptions = newInitOptions()
 	}
+	// init子命令的工作流程，包含各个阶段
 	initRunner := workflow.NewRunner()
 
 	cmd := &cobra.Command{
@@ -176,7 +180,7 @@ func newCmdInit(out io.Writer, initOptions *initOptions) *cobra.Command {
 		options.AddControlPlanExtraArgsFlags(flags, &initOptions.externalClusterCfg.APIServer.ExtraArgs, &initOptions.externalClusterCfg.ControllerManager.ExtraArgs, &initOptions.externalClusterCfg.Scheduler.ExtraArgs)
 	})
 
-	// initialize the workflow runner with the list of phases
+	// 初始化workflow runner的各个阶段
 	initRunner.AppendPhase(phases.NewPreflightPhase())
 	initRunner.AppendPhase(phases.NewCertsPhase())
 	initRunner.AppendPhase(phases.NewKubeConfigPhase())

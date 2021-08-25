@@ -21,6 +21,7 @@ import (
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 )
 
+// kubeadm 入口函数
 func main() {
 	kubeadmutil.CheckErr(app.Run())
 }

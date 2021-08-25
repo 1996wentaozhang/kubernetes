@@ -63,17 +63,19 @@ const (
 // CertConfig is a wrapper around certutil.Config extending it with PublicKeyAlgorithm.
 type CertConfig struct {
 	certutil.Config
-	NotAfter           *time.Time
-	PublicKeyAlgorithm x509.PublicKeyAlgorithm
+	NotAfter           *time.Time				// 过期时间
+	PublicKeyAlgorithm x509.PublicKeyAlgorithm	// 共钥算法
 }
 
+// 生成CA证书和密钥
 // NewCertificateAuthority creates new certificate and private key for the certificate authority
 func NewCertificateAuthority(config *CertConfig) (*x509.Certificate, crypto.Signer, error) {
+	// 生成CA密钥[共钥算法]
 	key, err := NewPrivateKey(config.PublicKeyAlgorithm)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "unable to create private key while generating CA certificate")
 	}
-
+	// 生成CA证书[配置信息,密钥]
 	cert, err := certutil.NewSelfSignedCACert(config.Config, key)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "unable to create self-signed CA certificate")
@@ -414,6 +416,7 @@ func pathForCSR(pkiPath, name string) string {
 	return filepath.Join(pkiPath, fmt.Sprintf("%s.csr", name))
 }
 
+// 获取APIServer的AltNames
 // GetAPIServerAltNames builds an AltNames object for to be used when generating apiserver certificate
 func GetAPIServerAltNames(cfg *kubeadmapi.InitConfiguration) (*certutil.AltNames, error) {
 	// advertise address
@@ -431,15 +434,15 @@ func GetAPIServerAltNames(cfg *kubeadmapi.InitConfiguration) (*certutil.AltNames
 	// create AltNames with defaults DNSNames/IPs
 	altNames := &certutil.AltNames{
 		DNSNames: []string{
-			cfg.NodeRegistration.Name,
+			cfg.NodeRegistration.Name, // 节点名
 			"kubernetes",
 			"kubernetes.default",
 			"kubernetes.default.svc",
 			fmt.Sprintf("kubernetes.default.svc.%s", cfg.Networking.DNSDomain),
 		},
 		IPs: []net.IP{
-			internalAPIServerVirtualIP,
-			advertiseAddress,
+			internalAPIServerVirtualIP,	// cluster IP的首个地址
+			advertiseAddress,	//
 		},
 	}
 
@@ -621,6 +624,7 @@ func EncodePublicKeyPEM(key crypto.PublicKey) ([]byte, error) {
 	return pem.EncodeToMemory(&block), nil
 }
 
+// 生成密钥对
 // NewPrivateKey returns a new private key.
 var NewPrivateKey = GeneratePrivateKey
 
@@ -641,14 +645,14 @@ func NewSignedCert(cfg *CertConfig, key crypto.Signer, caCert *x509.Certificate,
 	if len(cfg.CommonName) == 0 {
 		return nil, errors.New("must specify a CommonName")
 	}
-
+	// keyUsage
 	keyUsage := x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature
 	if isCA {
 		keyUsage |= x509.KeyUsageCertSign
 	}
-
+	// 清楚重复的AltNames
 	RemoveDuplicateAltNames(&cfg.AltNames)
-
+	// 过期时间
 	notAfter := time.Now().Add(kubeadmconstants.CertificateValidity).UTC()
 	if cfg.NotAfter != nil {
 		notAfter = *cfg.NotAfter

@@ -672,6 +672,7 @@ func GetAPIServerVirtualIP(svcSubnetList string, isDualStack bool) (net.IP, erro
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get internal Kubernetes Service IP from the given service CIDR")
 	}
+	// 返回子网的第一个IP
 	internalAPIServerVirtualIP, err := utilnet.GetIndexedIP(svcSubnet, 1)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to get the first IP address from the given CIDR: %s", svcSubnet.String())

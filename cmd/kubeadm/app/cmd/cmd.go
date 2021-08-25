@@ -33,7 +33,9 @@ func NewKubeadmCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	var rootfsPath string
 
 	cmds := &cobra.Command{
+		// 命令行名字
 		Use:   "kubeadm",
+		// 帮助信息
 		Short: "kubeadm: easily bootstrap a secure Kubernetes cluster",
 		Long: dedent.Dedent(`
 
@@ -66,6 +68,7 @@ func NewKubeadmCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 			    You can then repeat the second step on as many other machines as you like.
 
 		`),
+		//
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -77,12 +80,16 @@ func NewKubeadmCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 			return nil
 		},
 	}
-
+	// 清空命令行中所有flag
 	cmds.ResetFlags()
-
+	// 添加子命令
+	// 	certs
 	cmds.AddCommand(newCmdCertsUtility(out))
+	// 	completion SHELL
 	cmds.AddCommand(newCmdCompletion(out, ""))
+
 	cmds.AddCommand(newCmdConfig(out))
+	// init子命令
 	cmds.AddCommand(newCmdInit(out, nil))
 	cmds.AddCommand(newCmdJoin(out, nil))
 	cmds.AddCommand(newCmdReset(in, out, nil))
@@ -90,6 +97,7 @@ func NewKubeadmCommand(in io.Reader, out, err io.Writer) *cobra.Command {
 	cmds.AddCommand(newCmdToken(out, err))
 	cmds.AddCommand(upgrade.NewCmdUpgrade(out))
 	cmds.AddCommand(alpha.NewCmdAlpha())
+	// 添加flag:rootfsPath
 	options.AddKubeadmOtherFlags(cmds.PersistentFlags(), &rootfsPath)
 	cmds.AddCommand(newCmdKubeConfigUtility(out))
 

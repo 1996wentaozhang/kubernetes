@@ -28,15 +28,18 @@ import (
 	"k8s.io/kubernetes/cmd/kubeadm/app/cmd"
 )
 
-// Run creates and executes new kubeadm command
+// 新建并执行kubeadm command
 func Run() error {
+	// 1.设置日志
 	klog.InitFlags(nil)
+	// 2.设置命令行对象CommandLine
+
 	pflag.CommandLine.SetNormalizeFunc(cliflag.WordSepNormalizeFunc)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-
+	// 	设置指定flag参数的值
 	pflag.Set("logtostderr", "true")
-	// We do not want these flags to show up in --help
-	// These MarkHidden calls must be after the lines above
+	// 	在help中隐藏以下参数
+	// 	These MarkHidden calls must be after the lines above
 	pflag.CommandLine.MarkHidden("version")
 	pflag.CommandLine.MarkHidden("log-flush-frequency")
 	pflag.CommandLine.MarkHidden("alsologtostderr")
@@ -45,7 +48,8 @@ func Run() error {
 	pflag.CommandLine.MarkHidden("logtostderr")
 	pflag.CommandLine.MarkHidden("stderrthreshold")
 	pflag.CommandLine.MarkHidden("vmodule")
-
+	// 3.新建Kubeadm命令行
 	cmd := cmd.NewKubeadmCommand(os.Stdin, os.Stdout, os.Stderr)
+	//
 	return cmd.Execute()
 }
